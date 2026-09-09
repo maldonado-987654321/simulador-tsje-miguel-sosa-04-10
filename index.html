@@ -4,76 +4,206 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulador de votación</title>
+
 <style>
   * { box-sizing: border-box; }
+
+  :root {
+    --sim-width: 1280;
+    --sim-scale: 1;
+    --fondo-app: #282828;
+    --gris-pantalla: #efefef;
+  }
 
   html, body {
     margin: 0;
     padding: 0;
+    width: 100%;
+    min-height: 100%;
     font-family: Arial, Helvetica, sans-serif;
-    background: #ffffff;
     color: #111;
+    background: var(--fondo-app);
+    overflow-x: hidden;
   }
 
-  body { min-height: 100vh; }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  button, img {
+    -webkit-tap-highlight-color: transparent;
+  }
 
   .pantalla {
     display: none;
-    width: min(100%, 1280px);
-    min-height: 100vh;
-    margin: 0 auto;
-    padding: 0 10px 22px;
   }
 
-  .pantalla.activa { display: block; }
+  .pantalla.activa {
+    display: block;
+  }
 
-  /* Los encabezados conservan SIEMPRE su proporción */
+  /* ============================================================
+     PANTALLA MADRE
+     Se adapta de verdad al teléfono; no se escala como un lienzo.
+     ============================================================ */
+  .pantalla-madre {
+    position: fixed;
+    inset: 0;
+    background: #e9e9e9;
+    overflow: hidden;
+    z-index: 20;
+  }
+
+  .madre-contenido {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 560px;
+    background: #e9e9e9;
+  }
+
+  .madre-logo {
+    position: absolute;
+    left: clamp(24px, 13vw, 85px);
+    top: clamp(34px, 7vh, 88px);
+    width: clamp(125px, 27vw, 205px);
+    height: auto;
+    object-fit: contain;
+  }
+
+  .madre-maquina {
+    position: absolute;
+    left: 50%;
+    top: 34%;
+    transform: translateX(-50%);
+    width: clamp(250px, 49vw, 440px);
+    height: auto;
+    object-fit: contain;
+  }
+
+  .madre-texto {
+    position: absolute;
+    top: 60.5%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(88%, 760px);
+    margin: 0;
+    text-align: center;
+    font-size: clamp(18px, 3.8vw, 31px);
+    line-height: 1.08;
+    color: #111;
+  }
+
+  .madre-texto strong {
+    font-weight: 800;
+  }
+
+  .btn-continuar {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(42px, 7.5vh, 90px);
+    transform: translateX(-50%);
+
+    width: 160px;
+    height: 50px;
+    border: 0;
+    border-radius: 6px;
+    background: #3b83bd;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: center;
+    cursor: pointer;
+
+    box-shadow: 0 2px 5px rgba(0,0,0,.16);
+    transition: background-color .15s ease, box-shadow .08s ease;
+  }
+
+  .btn-continuar:hover {
+    background: #3274a9;
+  }
+
+  .btn-continuar:active {
+    background: #2d6999;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.22);
+  }
+
+  .btn-continuar:focus-visible {
+    outline: 3px solid rgba(59,131,189,.38);
+    outline-offset: 3px;
+  }
+
+  /* ============================================================
+     PANTALLAS 1, 2, 3 y FINAL
+     "Lienzo oficial" de 1280 px, escalado proporcionalmente.
+     En móvil NO se reorganizan las columnas: se ve el mismo diseño
+     de computadora, reducido proporcionalmente, como en las capturas.
+     ============================================================ */
+  .pantalla-simulador {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 1280px;
+    height: auto;
+    min-height: 620px;
+    margin: 0;
+    padding: 0 8px 8px;
+    background: var(--gris-pantalla);
+    transform:
+      translate(-50%, -50%)
+      scale(var(--sim-scale));
+    transform-origin: center center;
+    overflow: hidden;
+  }
+
   .encabezado-pantalla {
     display: block;
     width: 100%;
     height: auto;
+    margin: 0 auto 7px;
     object-fit: contain;
-    margin: 0 auto 14px;
-  }
-
-  .instruccion {
-    margin: 4px 0 14px;
-    font-size: clamp(16px, 1.7vw, 23px);
-    font-weight: 700;
-    text-align: center;
   }
 
   .grid {
     display: grid;
-    gap: 12px;
-    justify-content: center;
+    width: 100%;
+    gap: 4px;
+    justify-content: stretch;
     align-items: stretch;
   }
 
-  /* PANTALLA 1 */
+  /* Igual que la referencia: 3 columnas y segunda fila */
   .grid-candidatos {
-    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    width: 100%;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: auto;
   }
 
-  /* PANTALLA 2 */
+  /* Igual que la referencia: 5 columnas x 2 filas */
   .grid-listas {
-    grid-template-columns: repeat(5, minmax(130px, 1fr));
+    grid-template-columns: repeat(5, 1fr);
   }
 
-  /* PANTALLA 3 */
+  /* Igual que la referencia: 6 columnas x 4 filas */
   .grid-opciones {
-    grid-template-columns: repeat(6, minmax(135px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
   }
 
   .tarjeta {
-    border: 2px solid transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    display: block;
+    border: 1px solid #c7c7c7;
     background: #fff;
     padding: 0;
     margin: 0;
-    border-radius: 4px;
+    border-radius: 0;
     overflow: hidden;
-    transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease;
+    min-width: 0;
   }
 
   button.tarjeta {
@@ -81,147 +211,134 @@
   }
 
   button.tarjeta:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 3px 10px rgba(0,0,0,.18);
+    outline: 3px solid rgba(0,115,210,.35);
+    outline-offset: -3px;
+  }
+
+  button.tarjeta:active {
+    filter: brightness(.95);
   }
 
   button.tarjeta:focus-visible {
     outline: 4px solid #1267d6;
-    outline-offset: 2px;
+    outline-offset: -4px;
   }
 
   .tarjeta.seleccionada {
-    border-color: #0a8f24;
-    box-shadow: 0 0 0 3px rgba(10,143,36,.20);
+    outline: 5px solid #0a8f24 !important;
+    outline-offset: -5px;
   }
 
   .tarjeta img {
     display: block;
     width: 100%;
-    height: auto;
-    object-fit: contain;
+    height: 100%;
+    object-fit: fill;
   }
 
-  /* En la pantalla 1 las imágenes son más anchas; no se recortan. */
+  /* Mantienen proporciones parecidas a la página de referencia. */
+  .grid-candidatos .tarjeta {
+    min-height: 238px;
+  }
+
   .grid-candidatos .tarjeta img {
     aspect-ratio: 365 / 254;
   }
 
-  /* Las listas respetan su formato vertical original. */
+  .grid-listas .tarjeta {
+    min-height: 245px;
+  }
+
   .grid-listas .tarjeta img {
     aspect-ratio: 207 / 257;
   }
 
-  /* Las opciones son tarjetas horizontales. */
+  .grid-opciones .tarjeta {
+    min-height: 120px;
+  }
+
   .grid-opciones .tarjeta img {
     aspect-ratio: 176 / 99;
   }
 
-  /* Todas se ven normales. Solo Opción 2 tiene acción. */
+  /* Opciones visibles pero bloqueadas */
+  .tarjeta.bloqueada,
   .opcion-no-activa {
+    pointer-events: none;
     cursor: default;
     user-select: none;
   }
 
-  .opcion-activa {
-    cursor: pointer;
-  }
-
+  /* ============================================================
+     Barra inferior / volver
+     ============================================================ */
   .botonera {
+    width: 100%;
+    min-height: 38px;
+    margin-top: 4px;
     display: flex;
-    justify-content: center;
-    margin-top: 18px;
+    align-items: center;
+    justify-content: flex-start;
+    background: #d7d7d7;
+    border-top: 1px solid #bcbcbc;
   }
 
-  .btn-volver,
-  .btn-reiniciar {
+  .btn-volver {
+    height: 34px;
+    margin-left: 150px;
+    padding: 0 18px;
     border: 0;
-    border-radius: 7px;
-    padding: 12px 26px;
-    font-size: 16px;
+    border-radius: 0;
+    background: #666;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
   }
 
-  .btn-volver {
-    background: #5f676b;
-    color: #fff;
-  }
-
-  .btn-reiniciar {
-    background: #ff7a00;
-    color: #fff;
-  }
-
-  /* PANTALLA FINAL */
-  .final-contenido {
-    display: flex;
-    min-height: 62vh;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .imagen-final {
-    display: block;
-    width: min(480px, 80vw);
-    height: auto;
-    object-fit: contain;
-  }
-
-  @media (max-width: 1050px) {
-    .grid-candidatos { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
-    .grid-listas { grid-template-columns: repeat(4, minmax(135px, 1fr)); }
-    .grid-opciones { grid-template-columns: repeat(4, minmax(145px, 1fr)); }
-  }
-
-  @media (max-width: 720px) {
-    .pantalla { padding-left: 6px; padding-right: 6px; }
-    .grid-candidatos { grid-template-columns: repeat(2, minmax(145px, 1fr)); }
-    .grid-listas { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
-    .grid-opciones { grid-template-columns: repeat(2, minmax(135px, 1fr)); }
-  }
-
-  /* PANTALLA FINAL: imagen a la izquierda y botones a la derecha */
+  /* ============================================================
+     PANTALLA FINAL
+     Imagen/resultado a la izquierda + botones a la derecha.
+     Se conserva como un único lienzo y también se escala en móvil.
+     ============================================================ */
   .pantalla-final {
+    display: grid;
+    grid-template-columns: 1fr 150px;
     width: 100%;
-    display: flex;
+    min-height: 550px;
+    gap: 5px;
     align-items: stretch;
-    justify-content: center;
-    gap: 10px;
   }
 
   .contenedor-final {
-    flex: 1;
-    min-width: 0;
-    min-height: 580px;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 0;
+    min-height: 550px;
     background: #fff;
+    overflow: hidden;
   }
 
   .contenedor-final .imagen-final {
     display: block;
-    max-width: 100%;
-    max-height: 570px;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100%;
+    max-height: 550px;
     object-fit: contain;
   }
 
   .botones-laterales {
-    width: 140px;
-    flex: 0 0 140px;
+    width: 150px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .btn {
-    width: 140px;
-    border: none;
+    width: 150px;
+    border: 0;
     color: white;
     font-family: Arial, sans-serif;
     font-weight: bold;
@@ -240,159 +357,313 @@
   }
 
   .imprimir {
-    height: 400px;
+    flex: 1;
+    min-height: 370px;
     background-color: #00a900;
   }
 
-  .btn:hover { opacity: 0.9; }
-  .btn:active { transform: scale(0.98); }
+  .btn:hover {
+    filter: brightness(.95);
+  }
+
+  .btn:active {
+    transform: scale(.985);
+  }
 
   .icono {
     font-size: 45px;
+    line-height: 1;
     margin-bottom: 12px;
   }
 
-  @media print {
-    .botones-laterales { display: none !important; }
-    .pantalla-final { display: block; }
-    .contenedor-final { min-height: auto; }
-    .contenedor-final .imagen-final {
-      max-width: 100%;
-      max-height: none;
+  /* ============================================================
+     Computadoras grandes:
+     nunca se agranda más de su tamaño base para conservar proporción.
+     ============================================================ */
+  @media (min-width: 1280px) {
+    .pantalla-simulador {
+      --sim-scale: 1;
     }
   }
 
-  @media (max-width: 700px) {
-    .pantalla-final { flex-direction: column; }
-    .botones-laterales {
-      width: 100%;
-      flex: none;
-      flex-direction: row;
+  /* ============================================================
+     Teléfonos Android + iPhone/iOS:
+     se mantiene el lienzo horizontal completo y se reduce al ancho
+     disponible. No cambia la cantidad de columnas.
+     ============================================================ */
+  @media (max-width: 767px) {
+    html, body {
+      background: #282828;
     }
-    .btn { width: 50%; }
-    .reiniciar, .imprimir { height: 130px; }
-    .contenedor-final { min-height: auto; }
-  }
 
+    .pantalla-simulador {
+      min-height: 620px;
+    }
 
-  /* OPCIONES BLOQUEADAS: visibles, pero no responden al clic */
-  .tarjeta.bloqueada {
-    cursor: default;
-    pointer-events: none;
-  }
-  .tarjeta.bloqueada:hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-
-  /* =========================================
-     PANTALLA MADRE
-     ========================================= */
-  .pantalla-madre {
-    padding: 0 10px 24px;
-    background: #e9e9e9;
-  }
-
-  .madre-contenido {
-    width: 100%;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .imagen-madre {
-    display: block;
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    margin: 0 auto;
-  }
-
-  .btn-continuar {
-    width: 160px;
-    height: 50px;
-    margin-top: 18px;
-
-    border: none;
-    border-radius: 6px;
-
-    background: #3b83bd;
-    color: #ffffff;
-
-    font-family: Arial, sans-serif;
-    font-size: 18px;
-    font-weight: 600;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    cursor: pointer;
-    transition: background-color .18s ease, transform .08s ease, box-shadow .18s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,.16);
-  }
-
-  .btn-continuar:hover {
-    background: #326f9f;
-  }
-
-  .btn-continuar:active {
-    transform: scale(0.97);
-    box-shadow: 0 1px 2px rgba(0,0,0,.20);
-  }
-
-  .btn-continuar:focus-visible {
-    outline: 3px solid rgba(59,131,189,.35);
-    outline-offset: 3px;
-  }
-
-  @media (max-width: 700px) {
-    .pantalla-madre {
-      padding-left: 6px;
-      padding-right: 6px;
+    .madre-logo {
+      top: max(34px, env(safe-area-inset-top));
     }
 
     .btn-continuar {
-      margin-top: 14px;
+      bottom: max(42px, calc(env(safe-area-inset-bottom) + 28px));
     }
   }
 
   @media print {
-    #p0 {
+    html, body {
+      background: #fff !important;
+      overflow: visible !important;
+    }
+
+    #p0,
+    .botones-laterales,
+    .botonera {
+      display: none !important;
+    }
+
+    .pantalla-simulador {
+      position: static !important;
+      transform: none !important;
+      width: 100% !important;
+      min-height: auto !important;
+      background: #fff !important;
+    }
+
+    .pantalla-final {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* ============================================================
+     PANTALLA 5 — POST IMPRESIÓN
+     ============================================================ */
+  .pantalla-postimpresion {
+    position: fixed;
+    inset: 0;
+    background: #e9e9e9;
+    overflow: hidden;
+  }
+
+  .postimpresion-contenido {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 560px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .postimpresion-imagen {
+    display: block;
+    width: min(900px, 92vw);
+    max-height: 72vh;
+    max-height: 72dvh;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .btn-reiniciar-azul {
+    width: 160px;
+    height: 50px;
+    border: none;
+    border-radius: 6px;
+    background: #3b83bd;
+    color: #ffffff;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,.16);
+    transition:
+      background-color .15s ease,
+      transform .08s ease,
+      box-shadow .08s ease;
+  }
+
+  .btn-reiniciar-azul:hover {
+    background: #3274a9;
+  }
+
+  .btn-reiniciar-azul:active {
+    background: #2d6999;
+    transform: scale(.97);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.22);
+  }
+
+  .btn-reiniciar-azul:focus-visible {
+    outline: 3px solid rgba(59,131,189,.38);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 767px) {
+    .postimpresion-contenido {
+      justify-content: center;
+      gap: 22px;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        16px
+        max(24px, env(safe-area-inset-bottom));
+    }
+
+    .postimpresion-imagen {
+      width: 94vw;
+      max-height: 68dvh;
+    }
+  }
+
+  @media print {
+    #p5 {
       display: none !important;
     }
   }
 
+
+  /* Imagen específica de la pantalla final de reinicio */
+  .postimpresion-contenido {
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .postimpresion-imagen {
+    width: auto;
+    height: auto;
+    max-width: min(94vw, 900px);
+    max-height: calc(100dvh - 90px);
+    object-fit: contain;
+  }
+
+  @media (max-width: 767px) {
+    .postimpresion-contenido {
+      padding:
+        max(10px, env(safe-area-inset-top))
+        10px
+        max(10px, env(safe-area-inset-bottom));
+      gap: 12px;
+    }
+
+    .postimpresion-imagen {
+      max-width: 94vw;
+      max-height: calc(100dvh - 82px);
+    }
+
+    .btn-reiniciar-azul {
+      flex: 0 0 50px;
+    }
+  }
+
+
+  /* PANTALLA MADRE CORREGIDA: únicamente PANTALLA MADRE.PNG + COMIENZO */
+  .pantalla-madre {
+    position: fixed;
+    inset: 0;
+    background: #e9e9e9;
+    overflow: hidden;
+  }
+
+  .madre-contenido.madre-simple {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 520px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+  }
+
+  .imagen-madre-completa {
+    display: block;
+    width: min(100%, 1230px);
+    height: auto;
+    max-height: calc(100dvh - 90px);
+    object-fit: contain;
+    margin: 0;
+  }
+
+  .madre-simple .btn-continuar {
+    position: static;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    flex: 0 0 50px;
+    margin: 0;
+  }
+
+  .madre-simple .btn-continuar:active {
+    transform: scale(.97);
+  }
+
+  @media (max-width: 767px) {
+    .madre-contenido.madre-simple {
+      justify-content: center;
+      gap: 16px;
+      padding:
+        max(8px, env(safe-area-inset-top))
+        0
+        max(8px, env(safe-area-inset-bottom));
+    }
+
+    .imagen-madre-completa {
+      width: 100%;
+      max-height: calc(100dvh - 82px);
+    }
+  }
+
 </style>
+
 </head>
 
 <body>
 
+<!--
+FLUJO CORRECTO:
+Pantalla Madre
+→ Camilo 1
+→ Lista 1
+→ Opción 2
+→ Pantalla FINAL
+→ botón verde "Imprimir Selección" (NO imprime)
+→ Pantalla final de Reinicio
+→ botón azul "Reiniciar"
+→ Pantalla Madre
+-->
+
+
+
+
 <!-- =========================================================
-     PANTALLA MADRE — INTRODUCCIÓN
+     PANTALLA MADRE — SOLO IMAGEN + BOTÓN COMIENZO
      ========================================================= -->
 <section id="p0" class="pantalla activa pantalla-madre">
-  <div class="madre-contenido">
+  <div class="madre-contenido madre-simple">
     <img src="PANTALLA MADRE.PNG"
-         class="imagen-madre"
-         alt="Guía rápida para votar en la máquina de votación">
+         class="imagen-madre-completa"
+         alt="Pantalla Madre">
 
     <button class="btn-continuar"
             type="button"
             onclick="continuarDesdeMadre()">
-      Continuar
+      Comienzo
     </button>
   </div>
 </section>
 
 
+
+
 <!-- =========================================================
      PANTALLA 1 — CANDIDATOS A INTENDENTE
      ========================================================= -->
-<section id="p1" class="pantalla">
+<section id="p1" class="pantalla pantalla-simulador">
   <img src="ENCABEZADO 1.PNG" class="encabezado-pantalla" alt="Encabezado 1">
 
   <div class="grid grid-candidatos">
@@ -414,7 +685,7 @@
 <!-- =========================================================
      PANTALLA 2 — LISTAS
      ========================================================= -->
-<section id="p2" class="pantalla">
+<section id="p2" class="pantalla pantalla-simulador">
   <img src="ENCABEZADO 2.PNG" class="encabezado-pantalla" alt="Encabezado 2">
 
   <div class="grid grid-listas">
@@ -440,7 +711,7 @@
      PANTALLA 3 — 24 OPCIONES
      SOLO OPCIÓN 2 ES CLICKEABLE
      ========================================================= -->
-<section id="p3" class="pantalla">
+<section id="p3" class="pantalla pantalla-simulador">
   <img src="ENCABEZADO 3.PNG" class="encabezado-pantalla" alt="Encabezado 3">
 
   <div class="grid grid-opciones">
@@ -483,7 +754,7 @@
 <!-- =========================================================
      PANTALLA 4 — FINAL
      ========================================================= -->
-<section id="p4" class="pantalla">
+<section id="p4" class="pantalla pantalla-simulador">
   <img src="ENCABEZADO 4.PNG" class="encabezado-pantalla" alt="Encabezado 4">
 
   <div class="pantalla-final">
@@ -506,45 +777,100 @@
 </section>
 
 
+
 <script>
+  function ajustarEscalaSimulador() {
+    const anchoBase = 1280;
+    const anchoDisponible = Math.max(320, window.innerWidth);
+    const escala = Math.min(1, anchoDisponible / anchoBase);
+    document.documentElement.style.setProperty('--sim-scale', escala.toFixed(5));
+  }
+
   function mostrar(id) {
-    document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
-    document.getElementById(id).classList.add('activa');
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    ajustarEscalaSimulador();
+
+    document.querySelectorAll('.pantalla').forEach(function(pantalla) {
+      pantalla.classList.remove('activa');
+    });
+
+    const destino = document.getElementById(id);
+    if (destino) {
+      destino.classList.add('activa');
+    }
+
+    window.scrollTo(0, 0);
+  }
+
+  function continuarDesdeMadre() {
+    mostrar('p1');
   }
 
   function elegir(elemento, siguiente) {
     elemento.classList.add('seleccionada');
-    setTimeout(() => {
+
+    setTimeout(function() {
       elemento.classList.remove('seleccionada');
       mostrar(siguiente);
     }, 220);
   }
 
-  function reiniciar() {
-    document.querySelectorAll('.tarjeta').forEach(t => t.classList.remove('seleccionada'));
-    mostrar('p1');
-  }
-
+  // Botón naranja de la pantalla FINAL:
+  // vuelve a comenzar la selección desde Camilo.
   function reiniciarSeleccion() {
     document.querySelectorAll('.tarjeta').forEach(function(tarjeta) {
       tarjeta.classList.remove('seleccionada');
     });
+
     mostrar('p1');
   }
 
+  // IMPORTANTE:
+  // el botón verde "Imprimir Selección" NO imprime.
+  // Solo avanza a la nueva pantalla final de reinicio.
   function imprimirSeleccion() {
-    window.print();
+    mostrar('p5');
   }
 
+  // Botón azul de la última pantalla:
+  // vuelve al inicio real, la Pantalla Madre.
+  function reiniciarDesdeCero() {
+    document.querySelectorAll('.tarjeta').forEach(function(tarjeta) {
+      tarjeta.classList.remove('seleccionada');
+    });
 
-  function continuarDesdeMadre() {
-    // Avanza a la primera pantalla de selección.
-    // No recarga la página, por lo tanto conserva cualquier estado existente.
-    mostrar('p1');
+    mostrar('p0');
   }
 
+  // Compatibilidad con Android, iPhone/iOS y computadoras.
+  ajustarEscalaSimulador();
+
+  window.addEventListener('resize', ajustarEscalaSimulador);
+
+  window.addEventListener('orientationchange', function() {
+    setTimeout(ajustarEscalaSimulador, 120);
+  });
 </script>
+
+
+
+
+<!-- =========================================================
+     PANTALLA 5 — PANTALLA FINAL DE REINICIO
+     ========================================================= -->
+<section id="p5" class="pantalla pantalla-postimpresion">
+  <div class="postimpresion-contenido">
+    <img src="PANTALLA FINAL.PNG"
+         class="postimpresion-imagen"
+         alt="Pantalla final">
+
+    <button class="btn-reiniciar-azul"
+            type="button"
+            onclick="reiniciarDesdeCero()">
+      Reiniciar
+    </button>
+  </div>
+</section>
+
 
 </body>
 </html>
