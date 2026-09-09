@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de votación</title>
+<style>
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #ffffff;
+    color: #111;
+  }
+
+  body { min-height: 100vh; }
+
+  .pantalla {
+    display: none;
+    width: min(100%, 1280px);
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 0 10px 22px;
+  }
+
+  .pantalla.activa { display: block; }
+
+  /* Los encabezados conservan SIEMPRE su proporción */
+  .encabezado-pantalla {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto 14px;
+  }
+
+  .instruccion {
+    margin: 4px 0 14px;
+    font-size: clamp(16px, 1.7vw, 23px);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .grid {
+    display: grid;
+    gap: 12px;
+    justify-content: center;
+    align-items: stretch;
+  }
+
+  /* PANTALLA 1 */
+  .grid-candidatos {
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+  }
+
+  /* PANTALLA 2 */
+  .grid-listas {
+    grid-template-columns: repeat(5, minmax(130px, 1fr));
+  }
+
+  /* PANTALLA 3 */
+  .grid-opciones {
+    grid-template-columns: repeat(6, minmax(135px, 1fr));
+    gap: 10px;
+  }
+
+  .tarjeta {
+    border: 2px solid transparent;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease;
+  }
+
+  button.tarjeta {
+    cursor: pointer;
+  }
+
+  button.tarjeta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(0,0,0,.18);
+  }
+
+  button.tarjeta:focus-visible {
+    outline: 4px solid #1267d6;
+    outline-offset: 2px;
+  }
+
+  .tarjeta.seleccionada {
+    border-color: #0a8f24;
+    box-shadow: 0 0 0 3px rgba(10,143,36,.20);
+  }
+
+  .tarjeta img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  /* En la pantalla 1 las imágenes son más anchas; no se recortan. */
+  .grid-candidatos .tarjeta img {
+    aspect-ratio: 365 / 254;
+  }
+
+  /* Las listas respetan su formato vertical original. */
+  .grid-listas .tarjeta img {
+    aspect-ratio: 207 / 257;
+  }
+
+  /* Las opciones son tarjetas horizontales. */
+  .grid-opciones .tarjeta img {
+    aspect-ratio: 176 / 99;
+  }
+
+  /* Todas se ven normales. Solo Opción 2 tiene acción. */
+  .opcion-no-activa {
+    cursor: default;
+    user-select: none;
+  }
+
+  .opcion-activa {
+    cursor: pointer;
+  }
+
+  .botonera {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+  }
+
+  .btn-volver,
+  .btn-reiniciar {
+    border: 0;
+    border-radius: 7px;
+    padding: 12px 26px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .btn-volver {
+    background: #5f676b;
+    color: #fff;
+  }
+
+  .btn-reiniciar {
+    background: #ff7a00;
+    color: #fff;
+  }
+
+  /* PANTALLA FINAL */
+  .final-contenido {
+    display: flex;
+    min-height: 62vh;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .imagen-final {
+    display: block;
+    width: min(480px, 80vw);
+    height: auto;
+    object-fit: contain;
+  }
+
+  @media (max-width: 1050px) {
+    .grid-candidatos { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
+    .grid-listas { grid-template-columns: repeat(4, minmax(135px, 1fr)); }
+    .grid-opciones { grid-template-columns: repeat(4, minmax(145px, 1fr)); }
+  }
+
+  @media (max-width: 720px) {
+    .pantalla { padding-left: 6px; padding-right: 6px; }
+    .grid-candidatos { grid-template-columns: repeat(2, minmax(145px, 1fr)); }
+    .grid-listas { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+    .grid-opciones { grid-template-columns: repeat(2, minmax(135px, 1fr)); }
+  }
+
+  /* PANTALLA FINAL: imagen a la izquierda y botones a la derecha */
+  .pantalla-final {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contenedor-final {
+    flex: 1;
+    min-width: 0;
+    min-height: 580px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+  }
+
+  .contenedor-final .imagen-final {
+    display: block;
+    max-width: 100%;
+    max-height: 570px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .botones-laterales {
+    width: 140px;
+    flex: 0 0 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn {
+    width: 140px;
+    border: none;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .reiniciar {
+    height: 170px;
+    background-color: #ff7900;
+  }
+
+  .imprimir {
+    height: 400px;
+    background-color: #00a900;
+  }
+
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.98); }
+
+  .icono {
+    font-size: 45px;
+    margin-bottom: 12px;
+  }
+
+  @media print {
+    .botones-laterales { display: none !important; }
+    .pantalla-final { display: block; }
+    .contenedor-final { min-height: auto; }
+    .contenedor-final .imagen-final {
+      max-width: 100%;
+      max-height: none;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .pantalla-final { flex-direction: column; }
+    .botones-laterales {
+      width: 100%;
+      flex: none;
+      flex-direction: row;
+    }
+    .btn { width: 50%; }
+    .reiniciar, .imprimir { height: 130px; }
+    .contenedor-final { min-height: auto; }
+  }
+
+
+  /* OPCIONES BLOQUEADAS: visibles, pero no responden al clic */
+  .tarjeta.bloqueada {
+    cursor: default;
+    pointer-events: none;
+  }
+  .tarjeta.bloqueada:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+
+  /* =========================================
+     PANTALLA MADRE
+     ========================================= */
+  .pantalla-madre {
+    padding: 0 10px 24px;
+    background: #e9e9e9;
+  }
+
+  .madre-contenido {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .imagen-madre {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto;
+  }
+
+  .btn-continuar {
+    width: 160px;
+    height: 50px;
+    margin-top: 18px;
+
+    border: none;
+    border-radius: 6px;
+
+    background: #3b83bd;
+    color: #ffffff;
+
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: background-color .18s ease, transform .08s ease, box-shadow .18s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,.16);
+  }
+
+  .btn-continuar:hover {
+    background: #326f9f;
+  }
+
+  .btn-continuar:active {
+    transform: scale(0.97);
+    box-shadow: 0 1px 2px rgba(0,0,0,.20);
+  }
+
+  .btn-continuar:focus-visible {
+    outline: 3px solid rgba(59,131,189,.35);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 700px) {
+    .pantalla-madre {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+
+    .btn-continuar {
+      margin-top: 14px;
+    }
+  }
+
+  @media print {
+    #p0 {
+      display: none !important;
+    }
+  }
+
+</style>
+</head>
+
+<body>
+
+<!-- =========================================================
+     PANTALLA MADRE — INTRODUCCIÓN
+     ========================================================= -->
+<section id="p0" class="pantalla activa pantalla-madre">
+  <div class="madre-contenido">
+    <img src="PANTALLA MADRE.PNG"
+         class="imagen-madre"
+         alt="Guía rápida para votar en la máquina de votación">
+
+    <button class="btn-continuar"
+            type="button"
+            onclick="continuarDesdeMadre()">
+      Continuar
+    </button>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     PANTALLA 1 — CANDIDATOS A INTENDENTE
+     ========================================================= -->
+<section id="p1" class="pantalla">
+  <img src="ENCABEZADO 1.PNG" class="encabezado-pantalla" alt="Encabezado 1">
+
+  <div class="grid grid-candidatos">
+    <button class="tarjeta" type="button" onclick="elegir(this,'p2')">
+      <img src="CAMILO 1.PNG" alt="Camilo Perez">
+    </button>
+
+    <div class="tarjeta bloqueada"><img src="SOLE 2.PNG" alt="Sole Núñez"></div>
+
+    <div class="tarjeta bloqueada"><img src="RODRI 3.PNG" alt="Rodri Franco"></div>
+
+    <div class="tarjeta bloqueada"><img src="ARLENE 4.PNG" alt="Arlene Aquino"></div>
+
+    <div class="tarjeta bloqueada"><img src="VOTO EN BLANCO 1.PNG" alt="Voto en blanco"></div>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     PANTALLA 2 — LISTAS
+     ========================================================= -->
+<section id="p2" class="pantalla">
+  <img src="ENCABEZADO 2.PNG" class="encabezado-pantalla" alt="Encabezado 2">
+
+  <div class="grid grid-listas">
+    <button class="tarjeta" type="button" onclick="elegir(this,'p3')"><img src="LISTA 1.PNG" alt="Lista 1"></button>
+    <div class="tarjeta bloqueada"><img src="LISTA 2.PNG" alt="Lista 2"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 3.PNG" alt="Lista 3"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 4.PNG" alt="Lista 4"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 5.PNG" alt="Lista 5"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 6.PNG" alt="Lista 6"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 7.PNG" alt="Lista 7"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 8.PNG" alt="Lista 8"></div>
+    <div class="tarjeta bloqueada"><img src="LISTA 9.PNG" alt="Lista 9"></div>
+    <div class="tarjeta bloqueada"><img src="VOTO EN BLANCO 2.PNG" alt="Voto en blanco 2"></div>
+  </div>
+
+  <div class="botonera">
+    <button class="btn-volver" type="button" onclick="mostrar('p1')">Volver</button>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     PANTALLA 3 — 24 OPCIONES
+     SOLO OPCIÓN 2 ES CLICKEABLE
+     ========================================================= -->
+<section id="p3" class="pantalla">
+  <img src="ENCABEZADO 3.PNG" class="encabezado-pantalla" alt="Encabezado 3">
+
+  <div class="grid grid-opciones">
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 1.PNG" alt="Opción 1"></div>
+
+    <button class="tarjeta opcion-activa" type="button" onclick="elegir(this,'p4')" aria-label="Seleccionar Opción 2">
+      <img src="OPCION 2.PNG" alt="Opción 2 Miguel Sosa">
+    </button>
+
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 3.PNG" alt="Opción 3"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 4.PNG" alt="Opción 4"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 5.PNG" alt="Opción 5"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 6.PNG" alt="Opción 6"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 7.PNG" alt="Opción 7"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 8.PNG" alt="Opción 8"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 9.PNG" alt="Opción 9"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 10.PNG" alt="Opción 10"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 11.PNG" alt="Opción 11"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 12.PNG" alt="Opción 12"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 13.PNG" alt="Opción 13"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 14.PNG" alt="Opción 14"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 15.PNG" alt="Opción 15"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 16.PNG" alt="Opción 16"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 17.PNG" alt="Opción 17"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 18.PNG" alt="Opción 18"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 19.PNG" alt="Opción 19"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 20.PNG" alt="Opción 20"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 21.PNG" alt="Opción 21"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 22.PNG" alt="Opción 22"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 23.PNG" alt="Opción 23"></div>
+    <div class="tarjeta opcion-no-activa"><img src="OPCION 24.PNG" alt="Opción 24"></div>
+  </div>
+
+  <div class="botonera">
+    <button class="btn-volver" type="button" onclick="mostrar('p2')">Volver</button>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     PANTALLA 4 — FINAL
+     ========================================================= -->
+<section id="p4" class="pantalla">
+  <img src="ENCABEZADO 4.PNG" class="encabezado-pantalla" alt="Encabezado 4">
+
+  <div class="pantalla-final">
+    <div class="contenedor-final">
+      <img src="FINAL.PNG" class="imagen-final" alt="Final">
+    </div>
+
+    <div class="botones-laterales">
+      <button class="btn reiniciar" type="button" onclick="reiniciarSeleccion()">
+        <span class="icono">⟳</span>
+        <span>Reiniciar<br>Selección</span>
+      </button>
+
+      <button class="btn imprimir" type="button" onclick="imprimirSeleccion()">
+        <span class="icono">🖨</span>
+        <span>Imprimir<br>Selección</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+
+<script>
+  function mostrar(id) {
+    document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
+    document.getElementById(id).classList.add('activa');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  function elegir(elemento, siguiente) {
+    elemento.classList.add('seleccionada');
+    setTimeout(() => {
+      elemento.classList.remove('seleccionada');
+      mostrar(siguiente);
+    }, 220);
+  }
+
+  function reiniciar() {
+    document.querySelectorAll('.tarjeta').forEach(t => t.classList.remove('seleccionada'));
+    mostrar('p1');
+  }
+
+  function reiniciarSeleccion() {
+    document.querySelectorAll('.tarjeta').forEach(function(tarjeta) {
+      tarjeta.classList.remove('seleccionada');
+    });
+    mostrar('p1');
+  }
+
+  function imprimirSeleccion() {
+    window.print();
+  }
+
+
+  function continuarDesdeMadre() {
+    // Avanza a la primera pantalla de selección.
+    // No recarga la página, por lo tanto conserva cualquier estado existente.
+    mostrar('p1');
+  }
+
+</script>
+
+</body>
+</html>
